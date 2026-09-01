@@ -266,6 +266,27 @@ not on their `PATH`. `RunAtLoad` is deliberately false, so loading the agent or
 rebooting doesn't fire an extra run. If the Mac is asleep at 08:00, launchd runs
 the job when it next wakes.
 
+### The always-on server job
+
+`esp-serve` itself is supervised the same way, so the widget never hits
+"Could not connect to server" because a terminal got closed or the process
+died: `~/Library/LaunchAgents/com.willtobin.esp-news-server.plist` runs
+`uv run esp-serve --port 8010` and — unlike the digest job — sets
+`KeepAlive` unconditionally and `RunAtLoad` true, the same combination the
+widget's own LaunchAgent uses (`desktop/Makefile`). A crash, a `kill`, or a
+reboot all bring it back within `ThrottleInterval` (5s) or at next login.
+
+```bash
+launchctl print gui/$UID/com.willtobin.esp-news-server   # state, pid, last exit
+launchctl kickstart -k gui/$UID/com.willtobin.esp-news-server   # force a restart
+launchctl bootout gui/$UID/com.willtobin.esp-news-server        # actually stop it
+launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.willtobin.esp-news-server.plist
+```
+
+Logs: `~/Library/Logs/esp-news-server.log` / `.err`. Port 8010, not the
+uvicorn default of 8000, because Docker Desktop holds 8000 on this machine
+(see `desktop/Sources/ESPNewsWidget/main.swift`).
+
 ## The device (retired)
 
 Phases 7–8 built ESP32 firmware for a 172×640 touch panel: it fetched
